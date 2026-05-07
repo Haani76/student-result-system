@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Results — Student Result System</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <h1>Student Result System</h1>
+  <div>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="students.html">Students</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="marks.html">Enter Marks</a>
+    <a class="logout-btn" onclick="logout()">Logout</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- Student Result -->
+  <div class="card">
+    <h2>Student Result Card</h2>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:200px;margin:0">
+        <label>Select Student</label>
+        <select id="result-student">
+          <option value="">-- Select Student --</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="loadResult()">View Result</button>
+    </div>
+  </div>
+
+  <!-- Result Output -->
+  <div id="result-card" style="display:none" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <h2 id="res-name" style="margin:0;border:none;padding:0"></h2>
+        <p style="color:#666;font-size:0.9rem;margin-top:4px">
+          Roll No: <strong id="res-roll"></strong> &nbsp;|&nbsp; Class: <strong id="res-class"></strong>
+        </p>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:2rem;font-weight:700;color:#1e3a5f" id="res-pct"></div>
+        <span class="grade" id="res-grade"></span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Subject</th><th>Obtained</th><th>Total</th><th>%</th><th>Grade</th></tr>
+        </thead>
+        <tbody id="result-tbody"></tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:#f0f4f8">
+            <td>Total</td>
+            <td id="res-total-obt"></td>
+            <td id="res-total-marks"></td>
+            <td id="res-total-pct"></td>
+            <td id="res-total-grade"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Class Report -->
+  <div class="card">
+    <h2>Class Report</h2>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:200px;margin:0">
+        <label>Class Name</label>
+        <input type="text" id="class-input" placeholder="e.g. Grade 10 - A"/>
+      </div>
+      <button class="btn btn-success" onclick="loadClassReport()">Get Report</button>
+    </div>
+  </div>
+
+  <div id="class-report-card" style="display:none" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 id="class-title" style="margin:0;border:none;padding:0"></h2>
+      <div>Class Average: <strong id="class-avg"></strong></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Rank</th><th>Name</th><th>Roll No</th><th>Marks</th><th>%</th><th>Grade</th><th>Status</th></tr>
+        </thead>
+        <tbody id="class-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  requireAuth();
+
+  async function loadDropdown() {
+    const students = await apiCall("GET", "/students/");
+    const opts = students.map(s => `<option value="${s.id}">${s.name} (${s.roll_no})</option>`).join("");
+    document.getElementById("result-student").innerHTML += opts;
+
+    // Auto-select from URL param if coming from students page
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get("student_id");
+    if (sid) {
+      document.getElementById("result-student").value = sid;
+      loadResult();
+    }
+  }
+
+  async function loadResult() {
+    const studentId = document.getElementById("result-student").value;
+    if (!studentId) return alert("Please select a student.");
+    try {
+      const r = await apiCall("GET", `/results/student/${studentId}`);
+      document.getElementById("res-name").textContent = r.student_name;
+      document.getElementById("res-roll").textContent = r.roll_no;
+      document.getElementById("res-class").textContent = r.class_name;
+      document.getElementById("res-pct").textContent = r.overall_percentage + "%";
+
+      const gradeEl = document.getElementById("res-grade");
+      gradeEl.textContent = r.overall_grade;
+      gradeEl.className = `grade grade-${r.overall_grade.replace("+", "\\+")}`;
+
+      document.getElementById("result-tbody").innerHTML = r.results.map(s => `
+        <tr>
+          <td>${s.subject}</td>
+          <td>${s.obtained}</td>
+          <td>${s.total}</td>
+          <td>${s.percentage}%</td>
+          <td><span class="grade grade-${s.grade.replace("+","\\+")}">${s.grade}</span></td>
+        </tr>
+      `).join("");
+
+      document.getElementById("res-total-obt").textContent = r.total_obtained;
+      document.getElementById("res-total-marks").textContent = r.total_marks;
+      document.getElementById("res-total-pct").textContent = r.overall_percentage + "%";
+      document.getElementById("res-total-grade").textContent = r.overall_grade;
+
+      document.getElementById("result-card").style.display = "block";
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function loadClassReport() {
+    const className = document.getElementById("class-input").value.trim();
+    if (!className) return alert("Please enter a class name.");
+    try {
+      const data = await apiCall("GET", `/results/class/${encodeURIComponent(className)}/report`);
+      document.getElementById("class-title").textContent = `Class: ${data.class_name}`;
+      document.getElementById("class-avg").textContent = data.average_percentage + "%";
+
+      document.getElementById("class-tbody").innerHTML = data.students.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${s.name}</td>
+          <td>${s.roll_no}</td>
+          <td>${s.total_obtained}/${s.total_marks}</td>
+          <td>${s.percentage}%</td>
+          <td><span class="grade grade-${s.grade.replace("+","\\+")}">${s.grade}</span></td>
+          <td class="${s.status === 'Pass' ? 'pass' : 'fail'}">${s.status}</td>
+        </tr>
+      `).join("");
+
+      document.getElementById("class-report-card").style.display = "block";
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  loadDropdown();
+</script>
+</body>
+</html>

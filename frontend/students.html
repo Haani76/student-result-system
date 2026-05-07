@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Students — Student Result System</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <h1>Student Result System</h1>
+  <div>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="marks.html">Enter Marks</a>
+    <a href="results.html">Results</a>
+    <a class="logout-btn" onclick="logout()">Logout</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Add New Student</h2>
+    <div id="student-alert" class="alert"></div>
+    <form onsubmit="addStudent(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="s-name" placeholder="e.g. Ali Hassan" required/>
+        </div>
+        <div class="form-group">
+          <label>Roll Number</label>
+          <input type="text" id="s-roll" placeholder="e.g. 2024-001" required/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <input type="text" id="s-class" placeholder="e.g. Grade 10 - A" required/>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Student</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>All Students</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Roll No</th>
+            <th>Class</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="students-table">
+          <tr><td colspan="5" style="text-align:center;color:#999">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  requireAuth();
+
+  async function loadStudents() {
+    const tbody = document.getElementById("students-table");
+    try {
+      const students = await apiCall("GET", "/students/");
+      if (students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#999">No students yet. Add one above.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = students.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${s.name}</td>
+          <td>${s.roll_no}</td>
+          <td>${s.class_name}</td>
+          <td>
+            <a href="results.html?student_id=${s.id}" class="btn btn-primary" style="padding:5px 12px;font-size:0.82rem">View Result</a>
+            <button onclick="deleteStudent(${s.id})" class="btn btn-danger" style="padding:5px 12px;font-size:0.82rem;margin-left:6px">Delete</button>
+          </td>
+        </tr>
+      `).join("");
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:red;text-align:center">${err.message}</td></tr>`;
+    }
+  }
+
+  async function addStudent(e) {
+    e.preventDefault();
+    try {
+      await apiCall("POST", "/students/", {
+        name: document.getElementById("s-name").value,
+        roll_no: document.getElementById("s-roll").value,
+        class_name: document.getElementById("s-class").value,
+      });
+      showAlert("student-alert", "Student added successfully!", "success");
+      e.target.reset();
+      loadStudents();
+    } catch (err) {
+      showAlert("student-alert", err.message, "error");
+    }
+  }
+
+  async function deleteStudent(id) {
+    if (!confirm("Delete this student and all their marks?")) return;
+    try {
+      await apiCall("DELETE", `/students/${id}`);
+      loadStudents();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  loadStudents();
+</script>
+</body>
+</html>

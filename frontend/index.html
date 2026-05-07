@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — Student Result System</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="auth-wrapper">
+  <div class="auth-box">
+    <h2>Student Result System</h2>
+
+    <div id="tab-btns" style="display:flex;gap:10px;margin-bottom:22px;">
+      <button class="btn btn-primary" style="flex:1" onclick="showTab('login')">Login</button>
+      <button class="btn" style="flex:1;background:#ecf0f1;color:#333" onclick="showTab('register')">Register</button>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <!-- Login Form -->
+    <form id="login-form" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label>School Email</label>
+        <input type="email" id="login-email" placeholder="school@example.com" required />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Login</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="register-form" style="display:none" onsubmit="doRegister(event)">
+      <div class="form-group">
+        <label>School Name</label>
+        <input type="text" id="reg-name" placeholder="e.g. Sunrise Academy" required />
+      </div>
+      <div class="form-group">
+        <label>School Email</label>
+        <input type="email" id="reg-email" placeholder="school@example.com" required />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="Create a password" required />
+      </div>
+      <button type="submit" class="btn btn-success btn-full">Register School</button>
+    </form>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  if (getToken()) window.location.href = "dashboard.html";
+
+  function showTab(tab) {
+    document.getElementById("login-form").style.display = tab === "login" ? "block" : "none";
+    document.getElementById("register-form").style.display = tab === "register" ? "block" : "none";
+  }
+
+  async function doLogin(e) {
+    e.preventDefault();
+    try {
+      const data = await apiCall("POST", "/auth/login", {
+        email: document.getElementById("login-email").value,
+        password: document.getElementById("login-password").value,
+      });
+      setToken(data.access_token);
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      showAlert("alert-box", err.message, "error");
+    }
+  }
+
+  async function doRegister(e) {
+    e.preventDefault();
+    try {
+      const data = await apiCall("POST", "/auth/register", {
+        name: document.getElementById("reg-name").value,
+        email: document.getElementById("reg-email").value,
+        password: document.getElementById("reg-password").value,
+      });
+      setToken(data.access_token);
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      showAlert("alert-box", err.message, "error");
+    }
+  }
+</script>
+</body>
+</html>

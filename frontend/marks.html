@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enter Marks — Student Result System</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <h1>Student Result System</h1>
+  <div>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="students.html">Students</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="results.html">Results</a>
+    <a class="logout-btn" onclick="logout()">Logout</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Enter Student Marks</h2>
+    <div id="marks-alert" class="alert"></div>
+    <form onsubmit="enterMarks(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Select Student</label>
+          <select id="m-student" required>
+            <option value="">-- Select Student --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Select Subject</label>
+          <select id="m-subject" required>
+            <option value="">-- Select Subject --</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Obtained Marks</label>
+        <input type="number" id="m-marks" placeholder="e.g. 85" min="0" required/>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Marks</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>View Marks by Student</h2>
+    <div class="form-group">
+      <label>Select Student</label>
+      <select id="view-student" onchange="loadStudentMarks()">
+        <option value="">-- Select Student --</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Subject</th><th>Obtained</th><th>Total</th></tr>
+        </thead>
+        <tbody id="marks-table">
+          <tr><td colspan="3" style="text-align:center;color:#999">Select a student to view marks.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  requireAuth();
+
+  let subjectsData = [];
+
+  async function loadDropdowns() {
+    const [students, subjects] = await Promise.all([
+      apiCall("GET", "/students/"),
+      apiCall("GET", "/subjects/"),
+    ]);
+
+    subjectsData = subjects;
+
+    const studentOpts = students.map(s => `<option value="${s.id}">${s.name} (${s.roll_no})</option>`).join("");
+    const subjectOpts = subjects.map(s => `<option value="${s.id}" data-total="${s.total_marks}">${s.name} (/${s.total_marks})</option>`).join("");
+
+    document.getElementById("m-student").innerHTML += studentOpts;
+    document.getElementById("m-subject").innerHTML += subjectOpts;
+    document.getElementById("view-student").innerHTML += studentOpts;
+  }
+
+  async function enterMarks(e) {
+    e.preventDefault();
+    const subjectEl = document.getElementById("m-subject");
+    const selectedOption = subjectEl.options[subjectEl.selectedIndex];
+    const total = parseInt(selectedOption.getAttribute("data-total"));
+    const obtained = parseInt(document.getElementById("m-marks").value);
+
+    if (obtained > total) {
+      showAlert("marks-alert", `Marks cannot exceed total (${total})`, "error");
+      return;
+    }
+
+    try {
+      await apiCall("POST", "/marks/", {
+        student_id: parseInt(document.getElementById("m-student").value),
+        subject_id: parseInt(document.getElementById("m-subject").value),
+        obtained_marks: obtained,
+      });
+      showAlert("marks-alert", "Marks saved successfully!", "success");
+      e.target.reset();
+    } catch (err) {
+      showAlert("marks-alert", err.message, "error");
+    }
+  }
+
+  async function loadStudentMarks() {
+    const studentId = document.getElementById("view-student").value;
+    const tbody = document.getElementById("marks-table");
+    if (!studentId) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#999">Select a student to view marks.</td></tr>`;
+      return;
+    }
+    try {
+      const marks = await apiCall("GET", `/marks/student/${studentId}`);
+      if (marks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#999">No marks entered yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = marks.map(m => {
+        const sub = subjectsData.find(s => s.id === m.subject_id);
+        return `<tr>
+          <td>${sub ? sub.name : m.subject_id}</td>
+          <td>${m.obtained_marks}</td>
+          <td>${sub ? sub.total_marks : "—"}</td>
+        </tr>`;
+      }).join("");
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="3" style="color:red;text-align:center">${err.message}</td></tr>`;
+    }
+  }
+
+  loadDropdowns();
+</script>
+</body>
+</html>
