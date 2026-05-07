@@ -75,6 +75,9 @@
 
   async function doRegister(e) {
     e.preventDefault();
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.textContent = "Registering...";
+    btn.disabled = true;
     try {
       const data = await apiCall("POST", "/auth/register", {
         name: document.getElementById("reg-name").value,
@@ -84,7 +87,9 @@
       setToken(data.access_token);
       window.location.href = "dashboard.html";
     } catch (err) {
-      showAlert("alert-box", err.message, "error");
+      showAlert("alert-box", err.message || "Cannot connect to server. Make sure the backend is running.", "error");
+      btn.textContent = "Register School";
+      btn.disabled = false;
     }
   }
 </script>
